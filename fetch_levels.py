@@ -175,9 +175,9 @@ def fetch_page(measure, offset):
     return parse_items(get_json(f"{measure}/readings?_sorted&_limit={PAGE}&_offset={offset}", tries=2, timeout=40))
 
 
-def fetch_since(measure, since_iso):
-    q = urllib.parse.quote(since_iso)
-    return parse_items(get_json(f"{measure}/readings?since={q}&_sorted&_limit=10000", tries=2, timeout=40))
+def fetch_recent(measure):
+    """The latest ~10 days. Same style of request as the first fetch; duplicates are merged out afterwards."""
+    return parse_items(get_json(f"{measure}/readings?_sorted&_limit=1000", tries=2, timeout=40))
 
 
 def main():
@@ -211,7 +211,7 @@ def main():
         before = len(rows)
         new = None
         for c in (cands if not rows else cands[:1]):
-            new = fetch_since(c, max(rows)) if rows else fetch_page(c, 0)
+            new = fetch_recent(c) if rows else fetch_page(c, 0)
             if new:
                 state["measure"] = c
                 break
