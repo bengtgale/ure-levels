@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>River Ure levels</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f4f3ef; --surface: #fcfcfb; --line: #dedcd5; --grid: #ebe9e3;
+  --text: #0b0b0b; --text2: #52514e; --muted: #7a786f;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --band: rgba(42,120,214,.16); --ref: #7a786f;
+}
+@media (prefers-color-scheme: dark) {
+  :root { color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --line: #34332f; --grid: #2a2a27;
+    --text: #f0efec; --text2: #c3c2b7; --muted: #8f8d83;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --band: rgba(57,135,229,.2); --ref: #8f8d83; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.wrap { max-width: 1100px; margin: 0 auto; padding: 16px; }
+h1 { font-size: 22px; margin: 4px 0 2px; }
+.sub { color: var(--text2); font-size: 13px; margin-bottom: 14px; }
+.cards { margin-bottom: 14px; }
+.card { flex: 0 0 auto; min-width: 150px; text-align: left; background: var(--surface); color: inherit;
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; font: inherit; }
+.card[aria-pressed="true"] { border-color: var(--s1); box-shadow: 0 0 0 2px var(--s1) inset; }
+.card .n { font-size: 13px; color: var(--text2); }
+.card .v { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.card .v small { font-size: 13px; font-weight: 400; color: var(--text2); }
+.card .t { font-size: 12px; color: var(--muted); }
+.group { margin-bottom: 10px; }
+.group h2 { font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text2); margin: 0 0 6px; }
+.row { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 4px; }
+.tides { margin-top: 14px; border-top: 1px solid var(--line); padding-top: 10px; }
+.tides h3 { font-size: 14px; margin: 0 0 6px; }
+.tides .ev { display: inline-flex; gap: 6px; margin: 0 14px 4px 0; font-variant-numeric: tabular-nums; }
+.tides .next { font-weight: 600; }
+.tides .note { color: var(--muted); font-size: 12px; margin-top: 4px; }
+.mapwrap { margin-bottom: 14px; }
+#map { height: 300px; border-radius: 12px; border: 1px solid var(--line); z-index: 0; }
+.mapbar { display: flex; justify-content: space-between; align-items: center; margin: 0 2px 6px; font-size: 12px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text2); }
+.pin { width: 26px; height: 26px; border-radius: 50%; background: var(--surface); color: var(--text); border: 2px solid var(--text2);
+  display: flex; align-items: center; justify-content: center; font: 600 13px system-ui; box-shadow: 0 1px 4px rgba(0,0,0,.35); }
+.pin.sel { background: var(--s1); color: #fff; border-color: #fff; transform: scale(1.2); }
+.num { display: inline-block; min-width: 18px; height: 18px; line-height: 18px; text-align: center; border-radius: 9px; margin-right: 6px;
+  background: var(--line); color: var(--text); font-size: 11px; font-weight: 600; }
+.pop b { display: block; margin-bottom: 2px; }
+.pop button { margin-top: 6px; }
+.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 12px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { background: transparent; color: var(--text2); border: 0; padding: 7px 12px; font: inherit; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--s1); color: #fff; }
+select, .chip { background: var(--surface); color: var(--text); border: 1px solid var(--line); border-radius: 8px;
+  padding: 7px 10px; font: inherit; }
+.chips { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.chip { cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.chip i { width: 14px; height: 4px; border-radius: 2px; display: inline-block; }
+.chip[aria-pressed="false"] { opacity: .5; }
+.title { font-weight: 600; margin: 2px 0 8px; }
+.title span { font-weight: 400; color: var(--text2); font-size: 13px; }
+.chartbox { position: relative; height: 380px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; margin-top: 14px; }
+.stat { border-top: 2px solid var(--line); padding-top: 6px; }
+.stat .k { font-size: 12px; color: var(--text2); }
+.stat .x { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat .d { font-size: 12px; color: var(--muted); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; font-size: 14px; }
+th, td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+.tablebox { max-height: 380px; overflow: auto; }
+.msg { padding: 40px 10px; text-align: center; color: var(--text2); }
+footer { color: var(--muted); font-size: 12px; margin: 16px 2px; }
+footer a, .sub a { color: var(--s1); }
+.link { background: none; border: 0; color: var(--s1); cursor: pointer; font: inherit; padding: 0; }
+@media (max-width: 600px) { .chartbox { height: 300px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>River Ure levels</h1>
+  <div class="sub" id="updated">Loading…</div>
+  <div class="cards" id="cards" role="group" aria-label="Choose a gauge"></div>
+
+  <div class="mapwrap">
+    <div class="mapbar"><span>Gauge map</span><button class="link" id="mapToggle">Hide map</button></div>
+    <div id="map"></div>
+  </div>
+
+  <div class="panel">
+    <div class="controls">
+      <div class="seg" role="group" aria-label="View">
+        <button id="mPeriod" aria-pressed="true">Single period</button>
+        <button id="mCompare" aria-pressed="false">Compare years</button>
+      </div>
+      <select id="period" aria-label="Period"></select>
+      <select id="cmpWindow" aria-label="Window to compare" hidden>
+        <option value="season">Season (6 Apr – 31 Oct)</option>
+        <option value="close">Close season (1 Nov – 5 Apr)</option>
+        <option value="jfm">Jan – Mar</option>
+        <option value="year">Calendar year</option>
+      </select>
+      <div class="chips" id="years" hidden></div>
+      <div class="seg" role="group" aria-label="Chart or table" style="margin-left:auto">
+        <button id="vChart" aria-pressed="true">Chart</button>
+        <button id="vTable" aria-pressed="false">Table</button>
+      </div>
+    </div>
+    <div class="title" id="title"></div>
+    <div class="chartbox" id="chartbox"><canvas id="chart" role="img" aria-label="River level chart"></canvas></div>
+    <div class="tablebox" id="tablebox" hidden></div>
+    <div class="stats" id="stats"></div>
+    <div class="tides" id="tides" hidden></div>
+  </div>
+
+  <footer>
+    Gauges include the River Ure, its tributaries the Bain and Skell, and the River Ouse (tidal gauges are marked).
+    Levels are metres above each gauge's own datum, so compare a gauge with itself rather than with other gauges.
+    Refreshed automatically every 15 minutes or so (reload the page to see the latest); the Environment Agency gauges report about every 15 minutes.
+    Contains Environment Agency data © Environment Agency and/or database right, licensed under the
+    <a href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/">Open Government Licence v3.0</a>.
+    Live view: <a id="liveLink" href="https://check-for-flooding.service.gov.uk/">check-for-flooding</a>.
+  </footer>
+</div>
+
+<script>
+const TZ = 'Europe/London';
+const $ = id => document.getElementById(id);
+const fDay = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short' });
+const fDayY = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short', year: 'numeric' });
+const fDT = new Intl.DateTimeFormat('en-GB', { timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+const fMonthY = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', month: 'long', year: 'numeric' });
+const fMonth = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', month: 'short' });
+const DAY = 86400000;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const U = (y, m, d) => Date.UTC(y, m - 1, d);
+const ymd = ms => new Date(ms).toISOString().slice(0, 10);
+const fmt = v => v == null ? '–' : v.toFixed(2);
+
+let meta = null, station = null, cache = {}, chart = null;
+const state = { ref: null, mode: 'period', period: 'last30', cmpWindow: 'season', years: [], view: 'chart' };
+
+// ---------- data ----------
+async function loadSeries(ref) {
+  if (cache[ref]) return cache[ref];
+  const r = await fetch(`data/${ref}.csv?v=${encodeURIComponent(meta.updated)}`);
+  if (!r.ok) return (cache[ref] = null);
+  const lines = (await r.text()).split('\n');
+  const t = [], v = [];
+  for (let i = 1; i < lines.length; i++) {
+    const c = lines[i].indexOf(',');
+    if (c < 0) continue;
+    t.push(Date.parse(lines[i].slice(0, c))); v.push(parseFloat(lines[i].slice(c + 1)));
+  }
+  const s = { t, v, daily: null };
+  const map = new Map();
+  for (let i = 0; i < t.length; i++) {
+    const k = Math.floor(t[i] / DAY);
+    let a = map.get(k);
+    if (!a) map.set(k, a = { min: Infinity, max: -Infinity, sum: 0, n: 0 });
+    const x = v[i]; if (x < a.min) a.min = x; if (x > a.max) a.max = x; a.sum += x; a.n++;
+  }
+  s.daily = [...map.entries()].map(([k, a]) => ({ t: k * DAY + DAY / 2, day: k * DAY, min: a.min, max: a.max, mean: a.sum / a.n }));
+  return (cache[ref] = s);
+}
+
+function bucket(s, from, to, size) {
+  const map = new Map();
+  for (let i = 0; i < s.t.length; i++) {
+    const t = s.t[i]; if (t < from || t > to) continue;
+    const k = Math.floor(t / size);
+    let a = map.get(k); if (!a) map.set(k, a = { sum: 0, n: 0 });
+    a.sum += s.v[i]; a.n++;
+  }
+  return [...map.entries()].map(([k, a]) => ({ x: k * size + size / 2, y: a.sum / a.n }));
+}
+
+// ---------- periods ----------
+function periodOptions(st) {
+  const first = new Date(st.first), last = new Date(st.last);
+  const o = [['last7', 'Last 7 days'], ['last30', 'Last 30 days'], ['last90', 'Last 90 days']];
+  const y1 = first.getUTCFullYear(), y2 = last.getUTCFullYear();
+  for (let y = y2; y >= y1; y--) {
+    o.push([`season-${y}`, `Season ${y} (6 Apr – 31 Oct)`]);
+    o.push([`close-${y}`, `Close season ${y - 1}/${String(y).slice(2)} (1 Nov – 5 Apr)`]);
+  }
+  const lastMonth = last.getUTCFullYear() * 12 + last.getUTCMonth();
+  const firstMonth = first.getUTCFullYear() * 12 + first.getUTCMonth();
+  for (let m = lastMonth; m >= firstMonth; m--) {
+    const y = Math.floor(m / 12), mo = m % 12;
+    o.push([`m-${y}-${mo + 1}`, fMonthY.format(U(y, mo + 1, 1))]);
+  }
+  o.push(['all', 'All data']);
+  return o;
+}
+
+function periodWindow(p, st) {
+  const last = Date.parse(st.last), first = Date.parse(st.first);
+  let a, b;
+  if (p.startsWith('last')) { const n = +p.slice(4); b = last; a = last - n * DAY; }
+  else if (p === 'all') { a = first; b = last; }
+  else if (p.startsWith('season-')) { const y = +p.slice(7); a = U(y, 4, 6); b = U(y, 10, 31) + DAY - 1; }
+  else if (p.startsWith('close-')) { const y = +p.slice(6); a = U(y - 1, 11, 1); b = U(y, 4, 5) + DAY - 1; }
+  else { const [, y, m] = p.split('-').map(Number); a = U(y, m, 1); b = U(y, m + 1, 1) - 1; }
+  return [Math.max(a, first), Math.min(b, last)];
+}
+
+const WINDOWS = {
+  season: { sm: 4, sd: 6, em: 10, ed: 31, wrap: false, ref: U(2001, 4, 6), label: 'Season 6 Apr – 31 Oct' },
+  close:  { sm: 11, sd: 1, em: 4, ed: 5, wrap: true, ref: U(2001, 11, 1), label: 'Close season 1 Nov – 5 Apr' },
+  jfm:    { sm: 1, sd: 1, em: 3, ed: 31, wrap: false, ref: U(2001, 1, 1), label: 'Jan – Mar' },
+  year:   { sm: 1, sd: 1, em: 12, ed: 31, wrap: false, ref: U(2001, 1, 1), label: 'Calendar year' },
+};
+function yearWindow(w, y) {   // y = year in which the window ENDS
+  const a = U(w.wrap ? y - 1 : y, w.sm, w.sd);
+  return [a, U(y, w.em, w.ed) + DAY - 1];
+}
+
+// ---------- chart ----------
+const refLines = {
+  id: 'refLines',
+  afterDatasetsDraw(c) {
+    if (!station || state.mode !== 'period') return;
+    const { ctx, chartArea: a, scales: { y } } = c;
+    ctx.save(); ctx.setLineDash([5, 4]); ctx.strokeStyle = css('--ref'); ctx.fillStyle = css('--text2'); ctx.lineWidth = 1; ctx.font = '11px system-ui';
+    [[station.typical_high, 'Typical high'], [station.typical_low, 'Typical low']].forEach(([v, l]) => {
+      if (v == null) return;
+      const py = y.getPixelForValue(v);
+      if (py < a.top || py > a.bottom) return;
+      ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke();
+      ctx.fillText(`${l} ${v} m`, a.left + 6, py - 4);
+    });
+    ctx.restore();
+  }
+};
+
+function tickFmt(span) {
+  return v => span <= 3 * DAY ? fDT.format(v) : fDay.format(v);
+}
+
+function draw(cfg) {
+  if (chart) chart.destroy();
+  chart = new Chart($('chart'), { ...cfg, plugins: [refLines] });
+}
+
+function baseOptions(xCfg, legend) {
+  return {
+    responsive: true, maintainAspectRatio: false, animation: false,
+    interaction: { mode: 'index', intersect: false, axis: 'x' },
+    elements: { point: { radius: 0, hoverRadius: 5, hitRadius: 12 }, line: { borderWidth: 2, tension: 0 } },
+    scales: {
+      x: { type: 'linear', ticks: { color: css('--text2'), maxTicksLimit: 8, maxRotation: 0 }, grid: { color: css('--grid') }, ...xCfg },
+      y: { title: { display: true, text: 'Level (m)', color: css('--text2') }, ticks: { color: css('--text2') }, grid: { color: css('--grid') } },
+    },
+    plugins: { legend: { display: legend, labels: { color: css('--text'), usePointStyle: true, pointStyle: 'line', boxWidth: 30 } } },
+  };
+}
+
+async function renderPeriod() {
+  const s = await loadSeries(station.ref);
+  const [a, b] = periodWindow(state.period, station);
+  const span = b - a;
+  const lab = $('period').selectedOptions[0].textContent;
+  $('title').innerHTML = `${station.label} <span>· ${lab}</span>`;
+  const days = s.daily.filter(d => d.t >= a && d.t <= b);
+  if (!days.length) { showEmpty('No readings in this period.'); return; }
+  let datasets, tooltipExtra = null, view;
+  if (span > 62 * DAY) {
+    view = 'daily';
+    datasets = [
+      { label: 'Daily max', data: days.map(d => ({ x: d.t, y: d.max })), borderWidth: 0, backgroundColor: css('--band'), fill: '+1', order: 1 },
+      { label: 'Daily min', data: days.map(d => ({ x: d.t, y: d.min })), borderWidth: 0, order: 2 },
+      { label: 'Daily mean', data: days.map(d => ({ x: d.t, y: d.mean })), borderColor: css('--s1'), order: 0 },
+    ];
+  } else {
+    const size = span <= 10 * DAY ? 15 * 60000 : 3600000;
+    view = size === 3600000 ? 'hourly' : 'raw';
+    const pts = bucket(s, a, b, size);
+    datasets = [{ label: view === 'hourly' ? 'Hourly mean' : 'Level', data: pts, borderColor: css('--s1'), order: 0 }];
+  }
+  const o = baseOptions({ min: a, max: b, ticks: { color: css('--text2'), maxTicksLimit: 8, maxRotation: 0, callback: tickFmt(span) } }, false);
+  o.plugins.tooltip = {
+    callbacks: {
+      title: it => view === 'daily' ? fDayY.format(it[0].parsed.x) : fDT.format(it[0].parsed.x),
+      label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)} m`,
+    }
+  };
+  showChart(); draw({ type: 'line', data: { datasets }, options: o });
+  renderStats(days, s, a, b);
+  renderTable(['Date', 'Min (m)', 'Mean (m)', 'Max (m)'], days.slice().reverse().map(d => [fDayY.format(d.t), fmt(d.min), fmt(d.mean), fmt(d.max)]));
+}
+
+async function renderCompare() {
+  const s = await loadSeries(station.ref);
+  const w = WINDOWS[state.cmpWindow];
+  $('title').innerHTML = `${station.label} <span>· ${w.label}, year on year</span>`;
+  const first = Date.parse(station.first), last = Date.parse(station.last);
+  const avail = [];
+  for (let y = new Date(first).getUTCFullYear(); y <= new Date(last).getUTCFullYear() + 1; y++) {
+    const [a, b] = yearWindow(w, y);
+    if (b >= first && a <= last) avail.push(y);
+  }
+  avail.reverse();
+  // keep chosen years that are still valid, otherwise default to the latest 3
+  state.years = state.years.filter(y => avail.includes(y));
+  if (!state.years.length) state.years = avail.slice(0, 3);
+  const box = $('years'); box.innerHTML = '';
+  const colours = ['--s1', '--s2', '--s3', '--s4'];
+  const order = avail.slice().sort((x, y) => y - x);
+  order.forEach(y => {
+    const on = state.years.includes(y);
+    const idx = [...state.years].sort((x, z) => z - x).indexOf(y);
+    const chip = document.createElement('button');
+    chip.className = 'chip'; chip.setAttribute('aria-pressed', on);
+    chip.innerHTML = `${on ? `<i style="background:var(${colours[idx]})"></i>` : ''}${w.wrap ? `${y - 1}/${String(y).slice(2)}` : y}`;
+    chip.onclick = () => {
+      if (on) state.years = state.years.filter(v => v !== y);
+      else if (state.years.length < 4) state.years.push(y);
+      render();
+    };
+    box.appendChild(chip);
+  });
+  const sel = [...state.years].sort((x, z) => z - x);
+  const refSpan = yearWindow(w, 2002); const spanDays = Math.round((refSpan[1] - refSpan[0]) / DAY);
+  const datasets = [], rows = [];
+  sel.forEach((y, i) => {
+    const [a, b] = yearWindow(w, y);
+    const d = s.daily.filter(d => d.t >= a && d.t <= b);
+    if (!d.length) return;
+    const name = w.wrap ? `${y - 1}/${String(y).slice(2)}` : String(y);
+    datasets.push({ label: name, data: d.map(r => ({ x: (r.day - a) / DAY, y: r.mean })), borderColor: css(colours[i]), backgroundColor: css(colours[i]) });
+    const vals = d.map(r => r.mean);
+    const hi = station.typical_high;
+    rows.push([name, `${d.length}`, fmt(Math.min(...d.map(r => r.min))), fmt(vals.reduce((p, c) => p + c, 0) / vals.length), fmt(Math.max(...d.map(r => r.max))), hi != null ? `${d.filter(r => r.mean > hi).length}` : '–']);
+  });
+  if (!datasets.length) { showEmpty('Pick at least one year.'); return; }
+  const o = baseOptions({ min: 0, max: spanDays, ticks: { color: css('--text2'), maxTicksLimit: 8, maxRotation: 0, callback: v => fDay.format(w.ref + v * DAY) } }, true);
+  o.plugins.tooltip = { callbacks: { title: it => fDay.format(w.ref + it[0].parsed.x * DAY), label: c => `${c.dataset.label}: ${c.parsed.y.toFixed(2)} m (daily mean)` } };
+  showChart(); draw({ type: 'line', data: { datasets }, options: o });
+  const hi = station.typical_high;
+  renderTable(['Year', 'Days of data', 'Lowest (m)', 'Average (m)', 'Highest (m)', hi != null ? 'Days mean above typical high' : '—'], rows);
+  $('stats').innerHTML = '';
+}
+
+const TIDAL_CYCLE = (12 * 60 + 25) * 60000;
+async function renderTides() {
+  const box = $('tides');
+  if (!station.tidal && !station.tide_link) { box.hidden = true; return; }
+  const link = station.tide_link ? `<div class="note">Predicted tide times: <a href="${station.tide_link}">tide table for ${station.label}</a> (opens tidetime.org).</div>` : '';
+  const s = await loadSeries(station.ref);
+  const n = s.t.length, from = s.t[n - 1] - 40 * 3600000;
+  let i0 = 0; while (i0 < n && s.t[i0] < from) i0++;
+  const W = 12, evs = [];              // 12 readings = 3 hours either side
+  for (let i = Math.max(i0, W); i < n - W; i++) {
+    let hi = -Infinity, lo = Infinity;
+    for (let j = i - W; j <= i + W; j++) { if (s.v[j] > hi) hi = s.v[j]; if (s.v[j] < lo) lo = s.v[j]; }
+    let lo6 = Infinity, hi6 = -Infinity;
+    for (let j = Math.max(0, i - 2 * W); j <= Math.min(n - 1, i + 2 * W); j++) { if (s.v[j] < lo6) lo6 = s.v[j]; if (s.v[j] > hi6) hi6 = s.v[j]; }
+    const isHW = s.v[i] === hi && hi - lo6 > 0.4, isLW = s.v[i] === lo && hi6 - lo > 0.4;
+    const kind = isHW ? 'High' : isLW ? 'Low' : null;
+    if (!kind) continue;
+    const prev = evs[evs.length - 1];
+    if (prev && prev.kind === kind && s.t[i] - prev.t < 2 * 3600000) continue;
+    evs.push({ kind, t: s.t[i], v: s.v[i] });
+  }
+  const recent = evs.slice(-4);
+  box.hidden = false;
+  if (recent.length < 2) {
+    box.innerHTML = `<h3>Tides at ${station.label}</h3><div class="note">No clear tide cycle in the last 40 hours of readings. Upstream of the tidal limit the river is not tidal, and high flows can swamp the tide.</div>${link}`;
+    return;
+  }
+  const lastHW = [...evs].reverse().find(e => e.kind === 'High');
+  const lastLW = [...evs].reverse().find(e => e.kind === 'Low');
+  let est = '';
+  if (lastHW) {
+    let nx = lastHW.t + TIDAL_CYCLE; while (nx < Date.now()) nx += TIDAL_CYCLE;
+    est = `<div class="next">Next high water about ${fDT.format(nx)} (estimate)</div>`;
+  }
+  box.innerHTML = `<h3>Tides at ${station.label} <span style="font-weight:400;color:var(--text2)">· recent high and low water from this gauge</span></h3>` +
+    recent.map(e => `<span class="ev"><span>${e.kind === 'High' ? '▲ High' : '▼ Low'}</span><span>${fDT.format(e.t)}</span><span>${e.v.toFixed(2)} m</span></span>`).join('') + est +
+    `<div class="note">Observed from the gauge's own readings. The next-high estimate repeats the last high water every 12 h 25 min, so it can be 30–60 minutes out and shifts through the spring/neap cycle. Check official tide tables before relying on it.</div>${link}`;
+}
+
+function renderStats(days, s, a, b) {
+  let min = Infinity, max = -Infinity, sum = 0, n = 0, tmin, tmax;
+  days.forEach(d => { if (d.min < min) { min = d.min; tmin = d.t; } if (d.max > max) { max = d.max; tmax = d.t; } sum += d.mean; n++; });
+  const hi = station.typical_high;
+  const over = hi != null ? days.filter(d => d.mean > hi).length : null;
+  const tile = (k, x, d) => `<div class="stat"><div class="k">${k}</div><div class="x">${x}</div><div class="d">${d || ''}</div></div>`;
+  $('stats').innerHTML =
+    tile('Highest', fmt(max) + ' m', fDayY.format(tmax)) +
+    tile('Lowest', fmt(min) + ' m', fDayY.format(tmin)) +
+    tile('Average', fmt(sum / n) + ' m', `${n} days of data`) +
+    (over != null ? tile('Days above typical high', over, `${hi} m (daily mean)`) : '');
+}
+
+function renderTable(head, rows) {
+  $('tablebox').innerHTML = `<table><thead><tr>${head.map(h => `<th>${h}</th>`).join('')}</tr></thead><tbody>${rows.map(r => `<tr>${r.map(c => `<td>${c}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+}
+
+function showEmpty(msg) {
+  if (chart) { chart.destroy(); chart = null; }
+  $('chartbox').innerHTML = `<div class="msg">${msg}</div>`;
+  $('stats').innerHTML = ''; $('tablebox').innerHTML = '';
+}
+function showChart() {
+  if (!$('chart')) $('chartbox').innerHTML = '<canvas id="chart" role="img" aria-label="River level chart"></canvas>';
+}
+
+// ---------- UI ----------
+async function render() {
+  $('mPeriod').setAttribute('aria-pressed', state.mode === 'period');
+  $('mCompare').setAttribute('aria-pressed', state.mode === 'compare');
+  $('period').hidden = state.mode !== 'period';
+  $('cmpWindow').hidden = $('years').hidden = state.mode !== 'compare';
+  $('vChart').setAttribute('aria-pressed', state.view === 'chart');
+  $('vTable').setAttribute('aria-pressed', state.view === 'table');
+  $('chartbox').hidden = state.view !== 'chart';
+  $('tablebox').hidden = state.view !== 'table';
+  document.querySelectorAll('.card').forEach(c => c.setAttribute('aria-pressed', c.dataset.ref === state.ref));
+  if (state.mode === 'period') await renderPeriod(); else await renderCompare();
+  renderTides();
+  $('chart')?.setAttribute('aria-label', $('title').textContent + ' level chart');
+}
+
+let map = null, pins = {};
+function buildMap() {
+  if (typeof L === 'undefined') { $('map').innerHTML = '<div class="msg">Map could not load.</div>'; return; }
+  const withPos = meta.stations.filter(s => s.lat != null && s.lon != null);
+  if (!withPos.length) { $('map').parentElement.hidden = true; return; }
+  map = L.map('map', { scrollWheelZoom: false });
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+  withPos.forEach(s => {
+    const n = meta.stations.indexOf(s) + 1;
+    const icon = L.divIcon({ className: '', html: `<div class="pin" id="pin-${s.ref}">${n}</div>`, iconSize: [26, 26], iconAnchor: [13, 13] });
+    const v = parseFloat(s.latest_value);
+    const c1 = s.change_1h;
+    const trend = c1 == null ? '' : Math.abs(c1) < 0.01 ? 'steady' : c1 > 0 ? `▲ rising ${c1.toFixed(2)} m/h` : `▼ falling ${Math.abs(c1).toFixed(2)} m/h`;
+    const m = L.marker([s.lat, s.lon], { icon, title: s.label, keyboard: true }).addTo(map);
+    const pop = document.createElement('div'); pop.className = 'pop';
+    pop.innerHTML = `<b>${n}. ${s.label}</b>${v.toFixed(2)} m${trend ? ' · ' + trend : ''}<br><button class="link">Show chart</button>`;
+    pop.querySelector('button').onclick = () => { selectStation(s.ref); $('title').scrollIntoView({ behavior: 'smooth', block: 'center' }); };
+    m.bindPopup(pop);
+    m.on('click', () => selectStation(s.ref));
+    pins[s.ref] = m;
+  });
+  map.fitBounds(L.latLngBounds(withPos.map(s => [s.lat, s.lon])).pad(0.25), { maxZoom: 13 });
+  $('mapToggle').onclick = () => {
+    const hide = $('map').style.display !== 'none';
+    $('map').style.display = hide ? 'none' : 'block';
+    $('mapToggle').textContent = hide ? 'Show map' : 'Hide map';
+    if (!hide) setTimeout(() => map.invalidateSize(), 50);
+  };
+}
+function markPin() {
+  document.querySelectorAll('.pin').forEach(p => p.classList.toggle('sel', p.id === 'pin-' + state.ref));
+}
+
+function selectStation(ref) {
+  state.ref = ref; station = meta.stations.find(s => s.ref === ref);
+  const sel = $('period'); const prev = state.period;
+  sel.innerHTML = periodOptions(station).map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === prev) ? prev : 'last30';
+  state.period = sel.value;
+  $('liveLink').href = station.url || 'https://check-for-flooding.service.gov.uk/';
+  location.hash = ref;
+  markPin();
+  render();
+}
+
+function ago(ms) {
+  const m = Math.round((Date.now() - ms) / 60000);
+  return m < 90 ? `${m} min ago` : m < 2880 ? `${Math.round(m / 60)} h ago` : `${Math.round(m / 1440)} days ago`;
+}
+
+async function init() {
+  try {
+    const r = await fetch('data/stations.json?_=' + Date.now());
+    if (!r.ok) throw 0;
+    meta = await r.json();
+  } catch (e) { meta = null; }
+  if (!meta || !meta.stations.length) {
+    $('updated').textContent = '';
+    $('chartbox').innerHTML = '<div class="msg">No data yet. In the repository, open the Actions tab and run “Update river levels” once to collect the first readings.</div>';
+    return;
+  }
+  $('updated').textContent = `Last collected ${fDT.format(Date.parse(meta.updated))} · ${meta.stations.length} gauges`;
+  const cardHtml = s => {
+    const v = parseFloat(s.latest_value), lt = Date.parse(s.last);
+    let flag = '';
+    if (s.typical_high != null && v > s.typical_high) flag = ' ▲ above typical';
+    else if (s.typical_low != null && v < s.typical_low) flag = ' ▼ below typical';
+    const c1 = s.change_1h;
+    let trend = '';
+    if (c1 != null) trend = Math.abs(c1) < 0.01 ? ' · steady' : (c1 > 0 ? ` · ▲ rising ${c1.toFixed(2)} m/h` : ` · ▼ falling ${Math.abs(c1).toFixed(2)} m/h`);
+    const stale = Date.now() - lt > 6 * 3600000 ? ' · no recent reading' : '';
+    return `<button class="card" data-ref="${s.ref}" aria-pressed="false"><div class="n"><span class="num">${meta.stations.indexOf(s) + 1}</span>${s.label}${s.tidal ? ' (tidal)' : ''}</div><div class="v">${v.toFixed(2)} <small>m</small></div><div class="t">${ago(lt)}${trend}${flag}${stale}</div></button>`;
+  };
+  const groups = [];
+  meta.stations.forEach(s => {
+    const k = s.river || 'Other';
+    let g = groups.find(x => x.k === k);
+    if (!g) groups.push(g = { k, items: [] });
+    g.items.push(s);
+  });
+  $('cards').innerHTML = groups.map(g => `<div class="group"><h2>${g.k}</h2><div class="row">${g.items.map(cardHtml).join('')}</div></div>`).join('');
+  document.querySelectorAll('.card').forEach(c => c.onclick = () => selectStation(c.dataset.ref));
+  $('period').onchange = e => { state.period = e.target.value; render(); };
+  $('cmpWindow').onchange = e => { state.cmpWindow = e.target.value; state.years = []; render(); };
+  $('mPeriod').onclick = () => { state.mode = 'period'; render(); };
+  $('mCompare').onclick = () => { state.mode = 'compare'; render(); };
+  $('vChart').onclick = () => { state.view = 'chart'; render(); };
+  $('vTable').onclick = () => { state.view = 'table'; render(); };
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', render);
+  buildMap();
+  const want = location.hash.slice(1);
+  const pick = meta.stations.find(s => s.ref === want) || meta.stations.find(s => s.rloi == 8011) || meta.stations[0];
+  selectStation(pick.ref);
+}
+init();
+</script>
+</body>
+</html>

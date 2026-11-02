@@ -1,0 +1,17 @@
+{
+  "river_names": ["River Ure", "Ure", "River Bain", "River Ouse", "Ouse"],
+  "gauges": [
+    {"match": "Bainbridge", "group": "River Ure"},
+    {"match": "Kilgram"},
+    {"match": "Masham"},
+    {"match": "Ripon", "river": "River Ure"},
+    {"match": "Westwick"},
+    {"match": "Boroughbridge"},
+    {"match": "Aldwark"},
+    {"match": "Naburn", "tidal": true, "tide_link": "https://www.tidetime.org/europe/united-kingdom/naburn.htm"}
+  ],
+  "extra_rloi_ids": [8011],
+  "exclude_station_references": [],
+  "bounding_box": {"min_lat": 53.5, "max_lat": 54.5, "min_lon": -2.5, "max_lon": -0.5},
+  "backfill_from": "2025-01-01"
+}
