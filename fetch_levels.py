@@ -24,15 +24,15 @@ from datetime import date, datetime, timedelta, timezone
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, "data")
 API = "https://environment.data.gov.uk/flood-monitoring"
-CHUNK_DAYS = 14          # 14 days of 15-minute readings = ~1,350 rows, well under the 10,000 cap
+CHUNK_DAYS = 30          # 30 days of 15-minute readings = ~2,900 rows, well under the 10,000 cap
 UA = "ure-levels-logger/1.0 (personal angling project)"
 
 
-def get_json(url, tries=4):
+def get_json(url, tries=3):
     for attempt in range(tries):
         try:
             req = urllib.request.Request(url, headers={"User-Agent": UA, "Accept": "application/json"})
-            with urllib.request.urlopen(req, timeout=60) as r:
+            with urllib.request.urlopen(req, timeout=30) as r:
                 return json.load(r)
         except Exception as e:  # network blip, 5xx, etc.
             if isinstance(e, urllib.error.HTTPError) and 400 <= e.code < 500:
@@ -124,7 +124,7 @@ def discover_stations(cfg):
                     st["tide_link"] = g["tide_link"]
                 if st not in kept:
                     kept.append(st)
-            print(f"  '{g['match']}' -> {[h['label'] + ' (' + str(h['river']) + ')' for h in hits] or 'NO MATCH'}")
+            print(f"  '{g['match']}' -> {[h['label'] + ' (' + str(h['river']) + ')' for h in hits] or 'NO MATCH'}", flush=True)
         if unmatched:
             print("  ! No gauge matched: " + ", ".join(unmatched) + " (see the list below for names the API does have)", file=sys.stderr)
             print("  Gauges the API listed: " + "; ".join(sorted(f"{s['label']} ({s['river']})" for s in stations)), file=sys.stderr)
@@ -170,6 +170,8 @@ def fetch_range(measure, start, end):
 
 
 def main():
+    started = time.time()
+    budget = float(os.environ.get("MAX_MINUTES", "12")) * 60     # stop politely so each run stays short
     cfg = load_config()
     os.makedirs(DATA, exist_ok=True)
     backfill_from = date.fromisoformat(os.environ.get("BACKFILL_FROM", cfg.get("backfill_from", "2025-01-01")))
@@ -177,45 +179,68 @@ def main():
 
     stations = discover_stations(cfg)
     if not stations:
-        print("No stations found - API unreachable or river names wrong. Leaving data untouched.", file=sys.stderr)
+        print("No stations found - API unreachable or river names wrong. Leaving data untouched.", file=sys.stderr, flush=True)
         sys.exit(1)
-    print(f"Found {len(stations)} gauges")
+    print(f"Found {len(stations)} gauges", flush=True)
 
+    pfile = os.path.join(DATA, "progress.json")
+    progress = json.load(open(pfile)) if os.path.exists(pfile) else {}
+
+    rows_by, cursor, added = {}, {}, {}
     for st in stations:
-        path = os.path.join(DATA, f"{st['ref']}.csv")
-        rows = read_csv(path)
-        if rows:
-            last = max(rows)[:10]
-            start = date.fromisoformat(last) - timedelta(days=1)   # small overlap, dedupe handles it
-        else:
-            start = backfill_from
-        added = 0
-        d = start
-        while d <= today:
+        rows = read_csv(os.path.join(DATA, f"{st['ref']}.csv"))
+        rows_by[st["ref"]] = rows
+        added[st["ref"]] = 0
+        start = date.fromisoformat(max(rows)[:10]) - timedelta(days=1) if rows else backfill_from
+        if progress.get(st["ref"]):
+            start = max(start, date.fromisoformat(progress[st["ref"]]) - timedelta(days=1))
+        cursor[st["ref"]] = start
+
+    # one chunk per gauge per round, so every gauge fills in at the same pace
+    out_of_time = False
+    while not out_of_time and any(c <= today for c in cursor.values()):
+        for st in stations:
+            ref = st["ref"]
+            d = cursor[ref]
+            if d > today:
+                continue
+            if time.time() - started > budget:
+                out_of_time = True
+                break
             e = min(d + timedelta(days=CHUNK_DAYS - 1), today)
             new = fetch_range(st["measure"], d, e)
-            added += sum(1 for k in new if k not in rows)
-            rows.update(new)
-            d = e + timedelta(days=1)
+            added[ref] += sum(1 for k in new if k not in rows_by[ref])
+            rows_by[ref].update(new)
+            progress[ref] = e.isoformat()
+            cursor[ref] = e + timedelta(days=1)
+            print(f"  {st['label']}: {d} to {e}: {len(new)} readings", flush=True)
             time.sleep(0.3)  # be polite to the API
-        if rows:
-            write_csv(path, rows)
-            st["first"], st["last"] = min(rows), max(rows)
-            st["latest_value"] = rows[st["last"]]
-            keys = sorted(rows)
-            lt = datetime.fromisoformat(st["last"].replace("Z", "+00:00"))
-            for hrs in (1, 6):
-                target = (lt - timedelta(hours=hrs)).strftime("%Y-%m-%dT%H:%M:%SZ")
-                i = bisect.bisect_left(keys, target)
-                if i < len(keys) and keys[i] < st["last"]:
-                    st[f"change_{hrs}h"] = round(float(rows[st["last"]]) - float(rows[keys[i]]), 3)
-            st["count"] = len(rows)
-        print(f"  {st['label']}: +{added} readings, {len(rows)} total")
 
+    for st in stations:
+        rows = rows_by[st["ref"]]
+        if not rows:
+            continue
+        write_csv(os.path.join(DATA, f"{st['ref']}.csv"), rows)
+        st["first"], st["last"] = min(rows), max(rows)
+        st["latest_value"] = rows[st["last"]]
+        st["count"] = len(rows)
+        keys = sorted(rows)
+        lt = datetime.fromisoformat(st["last"].replace("Z", "+00:00"))
+        for hrs in (1, 6):
+            target = (lt - timedelta(hours=hrs)).strftime("%Y-%m-%dT%H:%M:%SZ")
+            i = bisect.bisect_left(keys, target)
+            if i < len(keys) and keys[i] < st["last"]:
+                st[f"change_{hrs}h"] = round(float(rows[st["last"]]) - float(rows[keys[i]]), 3)
+        print(f"{st['label']}: +{added[st['ref']]} new, {len(rows)} total", flush=True)
+
+    with open(pfile, "w") as f:
+        json.dump(progress, f)
     stations = [s for s in stations if s.get("count")]
     meta = {"updated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "stations": stations}
     with open(os.path.join(DATA, "stations.json"), "w") as f:
         json.dump(meta, f, indent=1)
+    if out_of_time:
+        print("Time limit reached - the rest of the history will be filled in on the next runs.", flush=True)
 
 
 if __name__ == "__main__":
