@@ -186,7 +186,7 @@ function bucket(s, from, to, size) {
 // ---------- periods ----------
 function periodOptions(st) {
   const first = new Date(st.first), last = new Date(st.last);
-  const o = [['last7', 'Last 7 days'], ['last30', 'Last 30 days'], ['last90', 'Last 90 days']];
+  const o = [['last1', 'Last 24 hours'], ['last3', 'Last 3 days'], ['last7', 'Last 7 days'], ['last30', 'Last 30 days'], ['last90', 'Last 90 days']];
   const y1 = first.getUTCFullYear(), y2 = last.getUTCFullYear();
   for (let y = y2; y >= y1; y--) {
     o.push([`season-${y}`, `Season ${y} (6 Apr – 31 Oct)`]);
@@ -294,7 +294,7 @@ async function renderPeriod() {
     }
   };
   showChart(); draw({ type: 'line', data: { datasets }, options: o });
-  renderStats(days, s, a, b);
+  if (view === 'daily') renderStats(days, s, a, b); else renderStatsRaw(s, a, b);
   renderTable(['Date', 'Min (m)', 'Mean (m)', 'Max (m)'], days.slice().reverse().map(d => [fDayY.format(d.t), fmt(d.min), fmt(d.mean), fmt(d.max)]));
 }
 
@@ -387,6 +387,25 @@ async function renderTides() {
   box.innerHTML = `<h3>Tides at ${station.label} <span style="font-weight:400;color:var(--text2)">· recent high and low water from this gauge</span></h3>` +
     recent.map(e => `<span class="ev"><span>${e.kind === 'High' ? '▲ High' : '▼ Low'}</span><span>${fDT.format(e.t)}</span><span>${e.v.toFixed(2)} m</span></span>`).join('') + est +
     `<div class="note">Observed from the gauge's own readings. The next-high estimate repeats the last high water every 12 h 25 min, so it can be 30–60 minutes out and shifts through the spring/neap cycle. Check official tide tables before relying on it.</div>${link}`;
+}
+
+function renderStatsRaw(s, a, b) {
+  let min = Infinity, max = -Infinity, sum = 0, n = 0, tmin, tmax, over = 0;
+  const hi = station.typical_high;
+  for (let i = 0; i < s.t.length; i++) {
+    const t = s.t[i]; if (t < a || t > b) continue;
+    const v = s.v[i];
+    if (v < min) { min = v; tmin = t; } if (v > max) { max = v; tmax = t; }
+    sum += v; n++; if (hi != null && v > hi) over++;
+  }
+  if (!n) { $('stats').innerHTML = ''; return; }
+  const tile = (k, x, d) => `<div class="stat"><div class="k">${k}</div><div class="x">${x}</div><div class="d">${d || ''}</div></div>`;
+  const hrs = over * 0.25;
+  $('stats').innerHTML =
+    tile('Highest', fmt(max) + ' m', fDT.format(tmax)) +
+    tile('Lowest', fmt(min) + ' m', fDT.format(tmin)) +
+    tile('Average', fmt(sum / n) + ' m', `${n} readings`) +
+    (hi != null ? tile('Time above typical high', hrs < 1 ? 'None' : `${hrs % 1 ? hrs.toFixed(1) : hrs} h`, `above ${hi} m`) : '');
 }
 
 function renderStats(days, s, a, b) {
