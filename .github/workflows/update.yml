@@ -25,17 +25,22 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Fetch latest readings
+      - name: Fetch latest readings and save them
         env:
           BACKFILL_FROM: ${{ github.event.inputs.backfill_from }}
         run: |
           if [ -z "$BACKFILL_FROM" ]; then unset BACKFILL_FROM; fi
-          python -u fetch_levels.py
-      - name: Commit new data
-        run: |
           git config user.name "river-bot"
           git config user.email "river-bot@users.noreply.github.com"
-          git add data
-          git diff --cached --quiet || git commit -m "Update river levels"
-          git pull --rebase
-          git push
+          for attempt in 1 2 3 4; do
+            git fetch origin main
+            git reset --hard origin/main          # always start from the latest saved state
+            python -u fetch_levels.py || exit 1
+            git add data
+            if git diff --cached --quiet; then echo "No new readings"; exit 0; fi
+            git commit -m "Update river levels"
+            if git push origin HEAD:main; then exit 0; fi
+            echo "Push rejected (another run saved first) - starting again, attempt $attempt"
+            sleep $((attempt * 5))
+          done
+          exit 1
