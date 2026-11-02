@@ -3,10 +3,10 @@
   "gauges": [
     {"match": "Bainbridge", "group": "River Ure"},
     {"match": "Kilgram"},
-    {"match": "Masham"},
+    {"match": "Masham", "river": "River Ure"},
     {"match": "Ripon", "river": "River Ure"},
     {"match": "Westwick"},
-    {"match": "Boroughbridge"},
+    {"match": "Boroughbridge", "river": "River Ure"},
     {"match": "Aldwark"},
     {"match": "Naburn", "tidal": true, "tide_link": "https://www.tidetime.org/europe/united-kingdom/naburn.htm"}
   ],
