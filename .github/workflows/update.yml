@@ -1,0 +1,35 @@
+name: Update river levels
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"     # every 15 minutes (GitHub may run it a few minutes late)
+  workflow_dispatch:            # lets you run it by hand from the Actions tab
+    inputs:
+      backfill_from:
+        description: "Backfill start date (YYYY-MM-DD) - only used for gauges with no data yet"
+        required: false
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch latest readings
+        env:
+          BACKFILL_FROM: ${{ github.event.inputs.backfill_from }}
+        run: |
+          if [ -z "$BACKFILL_FROM" ]; then unset BACKFILL_FROM; fi
+          python fetch_levels.py
+      - name: Commit new data
+        run: |
+          git config user.name "river-bot"
+          git config user.email "river-bot@users.noreply.github.com"
+          git add data
+          git diff --cached --quiet || git commit -m "Update river levels"
+          git push
