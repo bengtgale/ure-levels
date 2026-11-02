@@ -24,7 +24,7 @@ from datetime import date, datetime, timedelta, timezone
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA = os.path.join(ROOT, "data")
 API = "https://environment.data.gov.uk/flood-monitoring"
-CHUNK_DAYS = 30          # 30 days of 15-minute readings = ~2,900 rows, well under the 10,000 cap
+PAGE = 4000              # readings per request (~6 weeks of 15-minute readings)
 UA = "ure-levels-logger/1.0 (personal angling project)"
 
 
@@ -100,6 +100,7 @@ def discover_stations(cfg):
             "lat": lat,
             "lon": lon,
             "measure": m["@id"].replace("http://", "https://"),
+            "candidates": [mm["@id"].replace("http://", "https://") for mm in measures],
             "unit": m.get("unitName", "m"),
             "typical_low": (s.get("stageScale") or {}).get("typicalRangeLow") if isinstance(s.get("stageScale"), dict) else None,
             "typical_high": (s.get("stageScale") or {}).get("typicalRangeHigh") if isinstance(s.get("stageScale"), dict) else None,
@@ -169,19 +170,14 @@ def parse_items(res):
     return out
 
 
-def fetch_latest(measure):
-    """The most recent ~30 days. This is the fast, normal request."""
-    return parse_items(get_json(f"{measure}/readings?_sorted&_limit=3000", tries=2, timeout=40))
+def fetch_page(measure, offset):
+    """One page of readings, newest first. offset 0 = the most recent; higher offsets go back in time."""
+    return parse_items(get_json(f"{measure}/readings?_sorted&_limit={PAGE}&_offset={offset}", tries=2, timeout=40))
 
 
 def fetch_since(measure, since_iso):
     q = urllib.parse.quote(since_iso)
     return parse_items(get_json(f"{measure}/readings?since={q}&_sorted&_limit=10000", tries=2, timeout=40))
-
-
-def fetch_range(measure, start, end):
-    q = f"startdate={start.isoformat()}&enddate={end.isoformat()}&_sorted&_limit=10000"
-    return parse_items(get_json(f"{measure}/readings?{q}", tries=1, timeout=25))
 
 
 def main():
@@ -191,7 +187,6 @@ def main():
     os.makedirs(DATA, exist_ok=True)
     reset = bool(os.environ.get("BACKFILL_FROM"))     # typing a date into "Run workflow" re-opens the backfill
     backfill_from = date.fromisoformat(os.environ.get("BACKFILL_FROM") or cfg.get("backfill_from", "2025-01-01"))
-    today = datetime.now(timezone.utc).date()
 
     stations = discover_stations(cfg)
     if not stations:
@@ -206,29 +201,39 @@ def main():
     # 1. newest data first: quick, so the site has something to show straight away
     for st in stations:
         ref = st["ref"]
+        state = progress.get(ref)
+        if not isinstance(state, dict) or "cursor" in state or reset:
+            state = progress[ref] = {}
+        # try the measurement point that worked last time first, then the gauge's other level measures
+        cands = ([state["measure"]] if state.get("measure") else []) + [c for c in st["candidates"] if c != state.get("measure")]
         rows = read_csv(os.path.join(DATA, f"{ref}.csv"))
         rows_by[ref] = rows
         before = len(rows)
-        new = fetch_since(st["measure"], max(rows)) if rows else fetch_latest(st["measure"])
+        new = None
+        for c in (cands if not rows else cands[:1]):
+            new = fetch_since(c, max(rows)) if rows else fetch_page(c, 0)
+            if new:
+                state["measure"] = c
+                break
         if new is None:
-            print(f"  {st['label']}: could not fetch latest readings", flush=True)
+            print(f"  {st['label']}: could not fetch readings", flush=True)
             new = {}
+        if not rows and not new:
+            print(f"  {st['label']}: no readings on any of its level measures: {cands}", flush=True)
+        st["measure"] = state.get("measure", st["measure"])
         rows.update(new)
         added[ref] = len(rows) - before
         print(f"  {st['label']}: {len(new)} latest readings", flush=True)
-        state = progress.get(ref)
-        if not isinstance(state, dict) or reset:
-            state = progress[ref] = {}
-        if rows and "cursor" not in state:
-            state["cursor"] = min(rows)[:10]       # next backfill chunk ends here
+        if rows and "offset" not in state:
+            state["offset"] = PAGE                    # next page to fetch when filling in history
         if rows:
             write_csv(os.path.join(DATA, f"{ref}.csv"), rows)
         time.sleep(0.3)
 
-    # 2. then work backwards a month at a time, until the API has nothing older
+    # 2. then step back through history one page at a time, until the API has nothing older
     out_of_time = False
     while not out_of_time:
-        active = [st for st in stations if progress[st["ref"]].get("cursor") and not progress[st["ref"]].get("done")]
+        active = [st for st in stations if "offset" in progress[st["ref"]] and not progress[st["ref"]].get("done")]
         if not active:
             break
         for st in active:
@@ -236,23 +241,22 @@ def main():
             if time.time() - started > budget:
                 out_of_time = True
                 break
-            end = date.fromisoformat(state["cursor"])
-            if end < backfill_from:
-                state["done"] = True
+            new = fetch_page(st["measure"], state["offset"])
+            if new is None:
+                state["fails"] = state.get("fails", 0) + 1
+                if state["fails"] >= 3:
+                    state["done"] = True
+                print(f"  {st['label']}: history page failed ({state['fails']})", flush=True)
                 continue
-            start = max(end - timedelta(days=CHUNK_DAYS - 1), backfill_from)
-            new = fetch_range(st["measure"], start, end)
-            if new:
-                before = len(rows_by[ref])
-                rows_by[ref].update(new)
-                added[ref] += len(rows_by[ref]) - before
-                state["misses"] = 0
-            else:
-                state["misses"] = state.get("misses", 0) + 1
-            state["cursor"] = (start - timedelta(days=1)).isoformat()
-            if state["misses"] >= 2 or start <= backfill_from:
+            state["fails"] = 0
+            before = len(rows_by[ref])
+            rows_by[ref].update(new)
+            added[ref] += len(rows_by[ref]) - before
+            state["offset"] += PAGE
+            oldest = min(new)[:10] if new else None
+            if not new or len(new) < PAGE or oldest <= backfill_from.isoformat():
                 state["done"] = True
-            print(f"  {st['label']}: {start} to {end}: {len(new or {})} readings" + ("  (no older data - backfill finished)" if state.get("done") else ""), flush=True)
+            print(f"  {st['label']}: history back to {oldest}: {len(new)} readings" + ("  (backfill finished)" if state.get("done") else ""), flush=True)
             time.sleep(0.3)
 
     for st in stations:
@@ -275,6 +279,8 @@ def main():
     with open(pfile, "w") as f:
         json.dump(progress, f)
     stations = [s for s in stations if s.get("count")]
+    for st in stations:
+        st.pop("candidates", None)
     meta = {"updated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "stations": stations}
     with open(os.path.join(DATA, "stations.json"), "w") as f:
         json.dump(meta, f, indent=1)
