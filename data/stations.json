@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-07T00:29:54+00:00",
+ "updated": "2026-11-07T01:35:49+00:00",
  "stations": [
   {
    "ref": "L2208",
@@ -17,11 +17,33 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8011",
    "order": 0,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-06T23:45:00Z",
+   "last": "2026-11-07T01:00:00Z",
    "latest_value": "0.323",
-   "count": 3260,
+   "count": 3265,
    "change_1h": 0.0,
    "change_6h": -0.004
+  },
+  {
+   "ref": "F2206",
+   "rloi": "8113",
+   "label": "Kilgram",
+   "river": "River Ure",
+   "tidal": false,
+   "town": "Thornton Steward",
+   "lat": 54.269289,
+   "lon": -1.708806,
+   "measure": "https://environment.data.gov.uk/flood-monitoring/id/measures/F2206-level-stage-i-15_min-m",
+   "unit": "m",
+   "typical_low": null,
+   "typical_high": null,
+   "url": "https://check-for-flooding.service.gov.uk/station/8113",
+   "order": 1,
+   "first": "2026-10-04T00:00:00Z",
+   "last": "2026-11-07T01:00:00Z",
+   "latest_value": "0.391",
+   "count": 3265,
+   "change_1h": -0.001,
+   "change_6h": -0.006
   },
   {
    "ref": "L2205",
@@ -39,11 +61,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8133",
    "order": 2,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-06T23:45:00Z",
-   "latest_value": "0.282",
-   "count": 3258,
-   "change_1h": -0.001,
-   "change_6h": -0.004
+   "last": "2026-11-07T01:00:00Z",
+   "latest_value": "0.281",
+   "count": 3263,
+   "change_1h": 0.0,
+   "change_6h": -0.003
   },
   {
    "ref": "L2203",
@@ -61,11 +83,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8176",
    "order": 3,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-06T23:00:00Z",
+   "last": "2026-11-07T01:00:00Z",
    "latest_value": "0.154",
-   "count": 3256,
+   "count": 3264,
    "change_1h": -0.001,
-   "change_6h": -0.003
+   "change_6h": -0.001
   },
   {
    "ref": "F2202",
@@ -83,11 +105,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8215",
    "order": 4,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-06T23:45:00Z",
-   "latest_value": "0.172",
-   "count": 3245,
-   "change_1h": 0.014,
-   "change_6h": -0.005
+   "last": "2026-11-07T01:00:00Z",
+   "latest_value": "0.180",
+   "count": 3250,
+   "change_1h": 0.006,
+   "change_6h": -0.004
   },
   {
    "ref": "L2201",
@@ -105,11 +127,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8028",
    "order": 5,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-07T00:00:00Z",
-   "latest_value": "9.733",
-   "count": 3261,
-   "change_1h": -0.001,
-   "change_6h": -0.004
+   "last": "2026-11-07T01:15:00Z",
+   "latest_value": "9.738",
+   "count": 3266,
+   "change_1h": 0.004,
+   "change_6h": 0.002
   },
   {
    "ref": "L2200",
@@ -127,11 +149,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8004",
    "order": 6,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-06T23:45:00Z",
-   "latest_value": "0.147",
-   "count": 3260,
-   "change_1h": -0.002,
-   "change_6h": 0.0
+   "last": "2026-11-07T01:00:00Z",
+   "latest_value": "0.143",
+   "count": 3265,
+   "change_1h": -0.003,
+   "change_6h": -0.001
   },
   {
    "ref": "L2402",
@@ -150,10 +172,10 @@
    "order": 7,
    "tide_link": "https://www.tidetime.org/europe/united-kingdom/naburn.htm",
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-06T23:45:00Z",
-   "latest_value": "0.620",
-   "count": 3260,
-   "change_1h": -0.002,
+   "last": "2026-11-07T01:00:00Z",
+   "latest_value": "0.622",
+   "count": 3265,
+   "change_1h": 0.002,
    "change_6h": -0.006
   }
  ]
