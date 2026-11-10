@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-10T22:16:15+00:00",
+ "updated": "2026-11-10T23:01:12+00:00",
  "stations": [
   {
    "ref": "L2208",
@@ -17,11 +17,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8011",
    "order": 0,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
+   "last": "2026-11-10T22:30:00Z",
    "latest_value": "0.319",
-   "count": 3635,
+   "count": 3639,
    "change_1h": 0.0,
-   "change_6h": -0.004
+   "change_6h": -0.003
   },
   {
    "ref": "F2206",
@@ -39,9 +39,9 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8113",
    "order": 1,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
-   "latest_value": "0.384",
-   "count": 3635,
+   "last": "2026-11-10T22:30:00Z",
+   "latest_value": "0.383",
+   "count": 3639,
    "change_1h": -0.001,
    "change_6h": -0.005
   },
@@ -61,11 +61,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8133",
    "order": 2,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
-   "latest_value": "0.275",
-   "count": 3633,
-   "change_1h": 0.0,
-   "change_6h": -0.005
+   "last": "2026-11-10T22:30:00Z",
+   "latest_value": "0.273",
+   "count": 3637,
+   "change_1h": -0.002,
+   "change_6h": -0.006
   },
   {
    "ref": "L2203",
@@ -83,10 +83,10 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8176",
    "order": 3,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
+   "last": "2026-11-10T22:30:00Z",
    "latest_value": "0.146",
-   "count": 3634,
-   "change_1h": 0.001,
+   "count": 3638,
+   "change_1h": 0.0,
    "change_6h": -0.003
   },
   {
@@ -105,9 +105,9 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8215",
    "order": 4,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
-   "latest_value": "0.182",
-   "count": 3620,
+   "last": "2026-11-10T22:30:00Z",
+   "latest_value": "0.181",
+   "count": 3624,
    "change_1h": -0.001,
    "change_6h": -0.006
   },
@@ -127,11 +127,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8028",
    "order": 5,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
-   "latest_value": "9.753",
-   "count": 3635,
-   "change_1h": 0.008,
-   "change_6h": 0.003
+   "last": "2026-11-10T22:30:00Z",
+   "latest_value": "9.749",
+   "count": 3639,
+   "change_1h": -0.004,
+   "change_6h": 0.001
   },
   {
    "ref": "L2200",
@@ -149,11 +149,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8004",
    "order": 6,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
-   "latest_value": "0.155",
-   "count": 3635,
-   "change_1h": -0.003,
-   "change_6h": -0.009
+   "last": "2026-11-10T22:30:00Z",
+   "latest_value": "0.150",
+   "count": 3639,
+   "change_1h": -0.005,
+   "change_6h": -0.013
   },
   {
    "ref": "L2402",
@@ -172,11 +172,11 @@
    "order": 7,
    "tide_link": "https://www.tidetime.org/europe/united-kingdom/naburn.htm",
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-10T21:30:00Z",
+   "last": "2026-11-10T22:30:00Z",
    "latest_value": "0.639",
-   "count": 3635,
+   "count": 3639,
    "change_1h": 0.0,
-   "change_6h": -0.002
+   "change_6h": -0.001
   }
  ]
 }
