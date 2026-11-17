@@ -1,5 +1,5 @@
 {
- "updated": "2026-11-17T17:01:57+00:00",
+ "updated": "2026-11-17T18:08:08+00:00",
  "stations": [
   {
    "ref": "L2208",
@@ -127,11 +127,11 @@
    "url": "https://check-for-flooding.service.gov.uk/station/8028",
    "order": 5,
    "first": "2026-10-04T00:00:00Z",
-   "last": "2026-11-17T16:30:00Z",
-   "latest_value": "9.772",
-   "count": 4286,
-   "change_1h": -0.012,
-   "change_6h": -0.015
+   "last": "2026-11-17T17:30:00Z",
+   "latest_value": "9.769",
+   "count": 4290,
+   "change_1h": -0.003,
+   "change_6h": -0.057
   },
   {
    "ref": "L2200",
